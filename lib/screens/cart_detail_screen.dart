@@ -11,11 +11,13 @@ class CartDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      // Menggunakan warna background header agar menyatu dengan status bar
+      backgroundColor: Colors.teal[50],
       appBar: AppBar(
-        title: Text('Detail Item'),
+        title: Text('Rincian Pesanan', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
+        toolbarHeight: 60,
+        titleTextStyle: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
       ),
       body: FutureBuilder<CartItem>(
         future: apiService.fetchCartDetail(cartId),
@@ -26,48 +28,140 @@ class CartDetailScreen extends StatelessWidget {
             return Center(child: Text('Gagal memuat data'));
           } else {
             final item = snapshot.data!;
-            return Center(
-              child: Container(
-                width: double.infinity,
-                margin: EdgeInsets.all(20),
-                padding: EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 15,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.shopping_bag, size: 80, color: Colors.teal[200]),
-                    SizedBox(height: 20),
-                    Text(
-                      item.name,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+
+            return Column(
+              children: [
+                // --- 1. HEADER GAMBAR (30% Layar) ---
+                Container(
+                  height: MediaQuery.of(context).size.height * 0.30,
+                  width: double.infinity,
+                  child: Center(
+                    child: Hero(
+                      // Efek animasi halus jika ada transisi
+                      tag: 'cartImage${item.id}',
+                      child: Icon(
+                        Icons.shopping_bag_outlined,
+                        size: 120,
+                        color: Colors.teal,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                    Divider(height: 40, thickness: 1),
-                    _buildDetailRow('ID Produk', '#${item.id}'),
-                    _buildDetailRow('Jumlah', '${item.quantity} pcs'),
-                    _buildDetailRow('Harga Satuan', '\$${item.price}'),
-                    Divider(height: 40, thickness: 1),
-                    _buildDetailRow(
-                      'Total',
-                      '\$${item.price * item.quantity}',
-                      isBold: true,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+
+                // --- 2. KONTEN DETAIL (Sisa Layar) ---
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(40),
+                        topRight: Radius.circular(40),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: Offset(0, -5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Nama Produk
+                        Text(
+                          item.name,
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black87,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+
+                        // ID Produk (Badge Style)
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'ID Produk: #${item.id}',
+                            style: TextStyle(
+                              color: Colors.grey[800],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: 30),
+
+                        // --- INFO HARGA & QTY (Kotak Grid) ---
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildInfoBox('Harga Satuan', '\$${item.price}'),
+                            _buildInfoBox(
+                              'Jumlah (Qty)',
+                              '${item.quantity} pcs',
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 30),
+                        Divider(thickness: 1, color: Colors.grey[300]),
+                        SizedBox(height: 20),
+
+                        // --- TOTAL PAYMENT ---
+                        Spacer(), // Dorong ke bawah
+                        Text(
+                          'Total Pembayaran',
+                          style: TextStyle(
+                            color: Colors.grey[800],
+                            fontSize: 16,
+                          ),
+                        ),
+                        SizedBox(height: 7),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '\$${item.price * item.quantity}',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal,
+                              ),
+                            ),
+
+                            // Icon Struk (Hiasan)
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.teal[50],
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.receipt_long,
+                                color: Colors.teal,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        SizedBox(height: 90),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             );
           }
         },
@@ -75,22 +169,35 @@ class CartDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: isBold ? Colors.teal : Colors.black87,
+  // Widget kecil untuk kotak info (Harga & Qty)
+  Widget _buildInfoBox(String label, String value) {
+    return Expanded(
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 5),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(color: Colors.grey[700], fontSize: 12),
             ),
-          ),
-        ],
+            SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                color: Colors.black87,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

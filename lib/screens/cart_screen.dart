@@ -24,30 +24,94 @@ class _CartScreenState extends State<CartScreen> {
     });
   }
 
+  // --- FUNGSI BARU: MENAMPILKAN DIALOG KONFIRMASI ---
+  void _confirmDelete(int id) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 10),
+              Text('Konfirmasi Hapus'),
+            ],
+          ),
+          content: Text(
+            'Anda yakin ingin menghapus item ini?',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            // Tombol Batal
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Tutup dialog
+              },
+              child: Text(
+                'Batal',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Tombol Hapus
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Tutup dialog dulu
+                _deleteItem(id); // Baru jalankan fungsi hapus
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text('Hapus', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _deleteItem(int id) async {
     bool success = await apiService.deleteCartItem(id);
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Item berhasil dihapus (Simulasi)')),
+        SnackBar(
+          content: Text('Item berhasil dihapus'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-      // Refresh halaman (Catatan: Karena backend PHP statis, data mungkin kembali saat refresh)
+      // Refresh halaman
       _loadCart();
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal menghapus item')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus item'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Latar belakang soft
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Keranjang Belanja', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
         toolbarHeight: 60,
+        centerTitle: true,
         titleTextStyle: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+        elevation: 0,
       ),
       body: FutureBuilder<CartResponse>(
         future: futureCart,
@@ -57,7 +121,23 @@ class _CartScreenState extends State<CartScreen> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.items.isEmpty) {
-            return Center(child: Text('Keranjang kosong.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 80,
+                    color: Colors.grey[300],
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Keranjang masih kosong',
+                    style: TextStyle(color: Colors.grey, fontSize: 18),
+                  ),
+                ],
+              ),
+            );
           } else {
             final cartData = snapshot.data!;
             return Column(
@@ -65,13 +145,14 @@ class _CartScreenState extends State<CartScreen> {
                 // --- List Items ---
                 Expanded(
                   child: ListView.builder(
-                    padding: EdgeInsets.all(16),
+                    padding: EdgeInsets.all(18),
                     itemCount: cartData.items.length,
                     itemBuilder: (context, index) {
                       final item = cartData.items[index];
                       return Card(
-                        margin: EdgeInsets.only(bottom: 16),
-                        elevation: 2,
+                        color: Colors.teal[50],
+                        margin: EdgeInsets.symmetric(vertical: 8.0),
+                        elevation: 3,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -84,7 +165,7 @@ class _CartScreenState extends State<CartScreen> {
                                 width: 70,
                                 height: 70,
                                 decoration: BoxDecoration(
-                                  color: Colors.teal[50],
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
@@ -102,6 +183,8 @@ class _CartScreenState extends State<CartScreen> {
                                   children: [
                                     Text(
                                       item.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
@@ -145,13 +228,14 @@ class _CartScreenState extends State<CartScreen> {
                                       );
                                     },
                                   ),
-                                  // Tombol Hapus
+                                  // Tombol Hapus (SEKARANG PAKAI KONFIRMASI)
                                   IconButton(
                                     icon: Icon(
                                       Icons.delete_outline,
                                       color: Colors.red[300],
                                     ),
-                                    onPressed: () => _deleteItem(item.id),
+                                    // Ubah di sini: Panggil _confirmDelete
+                                    onPressed: () => _confirmDelete(item.id),
                                   ),
                                 ],
                               ),

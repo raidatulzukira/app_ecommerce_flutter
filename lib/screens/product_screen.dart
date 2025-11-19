@@ -49,9 +49,20 @@ class _ProductScreenState extends State<ProductScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${product.name} ditambahkan ke keranjang!'),
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.green[700], // Beri warna sukses
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 10),
+              Expanded(child: Text('${product.name} berhasil ditambahkan!')),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.green[700],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: EdgeInsets.all(16),
         ),
       );
     } else {
@@ -67,6 +78,7 @@ class _ProductScreenState extends State<ProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.teal[50],
       appBar: AppBar(
         title: Text('Daftar Produk', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
@@ -90,7 +102,7 @@ class _ProductScreenState extends State<ProductScreen> {
           } else {
             // --- UI BARU MENGGUNAKAN CARD ---
             return ListView.builder(
-              padding: EdgeInsets.all(8.0), // Beri jarak dari tepi layar
+              padding: EdgeInsets.all(15.0), // Beri jarak dari tepi layar
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
                 Product product = snapshot.data![index];
@@ -102,6 +114,8 @@ class _ProductScreenState extends State<ProductScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+
+                  // color: Colors.teal[50], // Warna latar Card yang lembut
                   child: ListTile(
                     contentPadding: EdgeInsets.all(12),
                     // 2. Placeholder gambar
@@ -109,7 +123,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       width: 60,
                       height: 60,
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        color: Colors.blue[50],
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -130,10 +144,11 @@ class _ProductScreenState extends State<ProductScreen> {
                     subtitle: Text(
                       '\$${product.price}', // Harga
                       style: TextStyle(
-                        color:
-                            Theme.of(
-                              context,
-                            ).colorScheme.primary, // 4. Warna dari tema
+                        color: Colors.teal,
+                        // color:
+                        //     Theme.of(
+                        //       context,
+                        //     ).colorScheme.primary, // 4. Warna dari tema
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -155,7 +170,7 @@ class _ProductScreenState extends State<ProductScreen> {
                         IconButton(
                           icon: Icon(
                             Icons.add_shopping_cart,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: Colors.teal,
                           ),
                           tooltip: 'Tambah ke Keranjang',
                           onPressed: () => _addToCart(product),
