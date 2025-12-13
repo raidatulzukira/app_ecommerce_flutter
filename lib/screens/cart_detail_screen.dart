@@ -11,7 +11,6 @@ class CartDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Menggunakan warna background header agar menyatu dengan status bar
       backgroundColor: Colors.teal[50],
       appBar: AppBar(
         title: Text('Rincian Pesanan', style: TextStyle(color: Colors.white)),
@@ -31,13 +30,11 @@ class CartDetailScreen extends StatelessWidget {
 
             return Column(
               children: [
-                // --- 1. HEADER GAMBAR (30% Layar) ---
                 Container(
                   height: MediaQuery.of(context).size.height * 0.30,
                   width: double.infinity,
                   child: Center(
                     child: Hero(
-                      // Efek animasi halus jika ada transisi
                       tag: 'cartImage${item.id}',
                       child: Icon(
                         Icons.shopping_bag_outlined,

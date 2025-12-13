@@ -24,7 +24,7 @@ class _CartScreenState extends State<CartScreen> {
     });
   }
 
-  // --- FUNGSI BARU: MENAMPILKAN DIALOG KONFIRMASI ---
+  // --- FUNGSI: MENAMPILKAN DIALOG KONFIRMASI ---
   void _confirmDelete(int id) {
     showDialog(
       context: context,
@@ -45,10 +45,9 @@ class _CartScreenState extends State<CartScreen> {
             style: TextStyle(fontSize: 16),
           ),
           actions: [
-            // Tombol Batal
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Tutup dialog
+                Navigator.of(context).pop();
               },
               child: Text(
                 'Batal',
@@ -61,8 +60,8 @@ class _CartScreenState extends State<CartScreen> {
             // Tombol Hapus
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Tutup dialog dulu
-                _deleteItem(id); // Baru jalankan fungsi hapus
+                Navigator.of(context).pop();
+                _deleteItem(id);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
@@ -228,13 +227,13 @@ class _CartScreenState extends State<CartScreen> {
                                       );
                                     },
                                   ),
-                                  // Tombol Hapus (SEKARANG PAKAI KONFIRMASI)
+                                  // Tombol Hapus
                                   IconButton(
                                     icon: Icon(
                                       Icons.delete_outline,
                                       color: Colors.red[300],
                                     ),
-                                    // Ubah di sini: Panggil _confirmDelete
+
                                     onPressed: () => _confirmDelete(item.id),
                                   ),
                                 ],

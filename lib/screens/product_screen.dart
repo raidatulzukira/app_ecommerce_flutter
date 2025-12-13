@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import '../services/api_service.dart';
 import 'product_detail_screen.dart';
+import 'user_screen.dart';
+import 'cart_screen.dart';
 
 class ProductScreen extends StatefulWidget {
   @override
@@ -40,9 +42,11 @@ class _ProductScreenState extends State<ProductScreen> {
   // }
 
   void _addToCart(Product product) async {
-    // Ubah jadi async
-    // Panggil API
-    bool success = await apiService.addToCart(product.id);
+    // 1. PERBAIKAN UTAMA: Kirim object 'product', bukan 'product.id'
+    bool success = await apiService.addToCart(product);
+
+    // 2. PERBAIKAN TAMBAHAN: Cek mounted agar aman dari error "Async Gap"
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -81,6 +85,25 @@ class _ProductScreenState extends State<ProductScreen> {
       backgroundColor: Colors.teal[50],
       appBar: AppBar(
         title: Text('Daftar Produk', style: TextStyle(color: Colors.white)),
+
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: IconButton(
+              // Ganti Icon User jadi Shopping Cart
+              icon: Icon(Icons.shopping_cart, size: 28, color: Colors.white),
+              tooltip: 'Keranjang Belanja',
+              onPressed: () {
+                // Navigasi ke CartScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CartScreen()),
+                );
+              },
+            ),
+          ),
+        ],
+
         backgroundColor: Colors.teal,
         toolbarHeight: 60,
         titleTextStyle: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
@@ -100,9 +123,8 @@ class _ProductScreenState extends State<ProductScreen> {
               ),
             );
           } else {
-            // --- UI BARU MENGGUNAKAN CARD ---
             return ListView.builder(
-              padding: EdgeInsets.all(15.0), // Beri jarak dari tepi layar
+              padding: EdgeInsets.all(15.0),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
                 Product product = snapshot.data![index];
@@ -115,7 +137,6 @@ class _ProductScreenState extends State<ProductScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
 
-                  // color: Colors.teal[50], // Warna latar Card yang lembut
                   child: ListTile(
                     contentPadding: EdgeInsets.all(12),
                     // 2. Placeholder gambar
@@ -181,7 +202,6 @@ class _ProductScreenState extends State<ProductScreen> {
                 );
               },
             );
-            // --- AKHIR UI BARU ---
           }
         },
       ),

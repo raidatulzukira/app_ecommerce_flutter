@@ -22,11 +22,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     futureProduct = apiService.fetchProductDetail(widget.productId);
   }
 
-  // --- FUNGSI TAMBAH KE KERANJANG (LOGIC LAMA TETAP ADA) ---
   void _addToCart(Product product) async {
-    // Panggil API (Jika Anda sudah update ApiService ke database, ini akan jalan)
-    // Jika masih simulasi, ini juga tetap jalan.
-    bool success = await apiService.addToCart(product.id);
+    // 1. Hapus '.id', kirim object 'product' saja
+    bool success = await apiService.addToCart(product);
+
+    // 2. Cek mounted agar aman (menghilangkan warning async gap)
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -54,7 +55,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         SnackBar(
           content: Text('Gagal menambahkan produk.'),
           backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -63,7 +63,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal[50], // Background soft matching theme
+      backgroundColor: Colors.teal[50],
       appBar: AppBar(
         title: Text('Detail Produk', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
@@ -84,10 +84,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               children: [
                 // --- 1. AREA GAMBAR PRODUK (Header) ---
                 Expanded(
-                  flex: 2, // Mengambil porsi atas layar
+                  flex: 2,
                   child: Center(
                     child: Hero(
-                      tag: 'product_${product.id}', // Animasi transisi jika ada
+                      tag: 'product_${product.id}',
                       child: Icon(
                         Icons.shopping_bag_outlined,
                         size: 150,
@@ -99,7 +99,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                 // --- 2. AREA KONTEN (White Sheet) ---
                 Expanded(
-                  flex: 3, // Mengambil porsi lebih besar di bawah
+                  flex: 3,
                   child: Container(
                     padding: EdgeInsets.fromLTRB(24, 32, 24, 24),
                     decoration: BoxDecoration(
@@ -119,7 +119,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Garis kecil di tengah atas sheet (hiasan UI modern)
                         Center(
                           child: Container(
                             width: 40,
@@ -182,17 +181,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 15,
-                                height:
-                                    1.6, // Jarak antar baris agar mudah dibaca
+                                height: 1.6,
                               ),
                             ),
                           ),
                         ),
 
-                        // SizedBox(height: 20),
-
                         // --- 3. TOMBOL AKSI FIXED DI BAWAH ---
-                        // --- TAMBAHKAN WIDGET CENTER DI SINI ---
                         Center(
                           child: SizedBox(
                             width: 235, // Lebar tombol

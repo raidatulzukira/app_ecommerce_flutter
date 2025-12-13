@@ -13,13 +13,12 @@ class Product {
     required this.description,
   });
 
-  // Perhatikan: 'Description' di API Anda menggunakan 'D' besar
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'],
       name: json['name'],
       price: json['price'],
-      description: json['Description'], // Sesuaikan dengan key di API Anda
+      description: json['Description'],
     );
   }
 }
