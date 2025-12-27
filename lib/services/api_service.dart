@@ -7,31 +7,84 @@ import '../models/user_model.dart';
 
 class ApiService {
   // IP Emulator Android (Gunakan IP LAN laptop jika pakai HP fisik)
-  final String baseUrlProduct = 'http://10.0.2.2:3000';
+  final String baseUrlProduct = 'http://10.150.38.203:3000';
   final String baseUrlCart = 'http://10.0.2.2:8000';
   final String baseUrlReview = 'http://10.0.2.2:5002';
   final String baseUrlUser = 'http://10.0.2.2:4000';
 
-  // --- PRODUCT SERVICE (Port 3000) ---
 
+  // --- PRODUCT CRUD ---
+
+  // 1. GET ALL
   Future<List<Product>> fetchProducts() async {
     final response = await http.get(Uri.parse('$baseUrlProduct/products'));
     if (response.statusCode == 200) {
-      List<dynamic> body = jsonDecode(response.body);
+      final jsonResponse = jsonDecode(response.body);
+      // Backend Anda membungkus data dalam key 'data'
+      List<dynamic> body = jsonResponse['data']; 
       return body.map((item) => Product.fromJson(item)).toList();
     } else {
       throw Exception('Gagal memuat produk');
     }
   }
 
+  // 2. GET DETAIL
   Future<Product> fetchProductDetail(int id) async {
     final response = await http.get(Uri.parse('$baseUrlProduct/products/$id'));
     if (response.statusCode == 200) {
-      return Product.fromJson(jsonDecode(response.body));
+      final jsonResponse = jsonDecode(response.body);
+      return Product.fromJson(jsonResponse['data']);
     } else {
       throw Exception('Gagal memuat detail produk');
     }
   }
+
+  // 3. CREATE
+  Future<bool> createProduct(Product product) async {
+    final response = await http.post(
+      Uri.parse('$baseUrlProduct/products'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(product.toJson()),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  // 4. UPDATE
+  Future<bool> updateProduct(int id, Product product) async {
+    final response = await http.put(
+      Uri.parse('$baseUrlProduct/products/$id'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(product.toJson()),
+    );
+    return response.statusCode == 200;
+  }
+
+  // 5. DELETE
+  Future<bool> deleteProduct(int id) async {
+    final response = await http.delete(Uri.parse('$baseUrlProduct/products/$id'));
+    return response.statusCode == 200;
+  }
+
+  // --- PRODUCT SERVICE (Port 3000) ---
+
+  // Future<List<Product>> fetchProducts() async {
+  //   final response = await http.get(Uri.parse('$baseUrlProduct/products'));
+  //   if (response.statusCode == 200) {
+  //     List<dynamic> body = jsonDecode(response.body);
+  //     return body.map((item) => Product.fromJson(item)).toList();
+  //   } else {
+  //     throw Exception('Gagal memuat produk');
+  //   }
+  // }
+
+  // Future<Product> fetchProductDetail(int id) async {
+  //   final response = await http.get(Uri.parse('$baseUrlProduct/products/$id'));
+  //   if (response.statusCode == 200) {
+  //     return Product.fromJson(jsonDecode(response.body));
+  //   } else {
+  //     throw Exception('Gagal memuat detail produk');
+  //   }
+  // }
 
   // --- CART SERVICE (Port 8000) ---
 

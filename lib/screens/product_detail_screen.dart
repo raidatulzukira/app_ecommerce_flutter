@@ -22,11 +22,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     futureProduct = apiService.fetchProductDetail(widget.productId);
   }
 
+  // --- FUNGSI ADD TO CART (Sudah disesuaikan) ---
   void _addToCart(Product product) async {
-    // 1. Hapus '.id', kirim object 'product' saja
+    // Kirim object 'product' utuh (bukan ID saja)
     bool success = await apiService.addToCart(product);
 
-    // 2. Cek mounted agar aman (menghilangkan warning async gap)
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -63,12 +63,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal[50],
+      backgroundColor: Colors.teal[50], // Background header soft teal
       appBar: AppBar(
         title: Text('Detail Produk', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
+        elevation: 0, // Hilangkan shadow agar menyatu dengan background
         toolbarHeight: 60,
         titleTextStyle: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: FutureBuilder<Product>(
         future: futureProduct,
@@ -88,10 +90,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: Center(
                     child: Hero(
                       tag: 'product_${product.id}',
-                      child: Icon(
-                        Icons.shopping_bag_outlined,
-                        size: 150,
-                        color: Colors.teal,
+                      child: Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        padding: EdgeInsets.all(30),
+                        // HAPUS LOGIKA GAMBAR, GANTI ICON SAJA
+                        child: Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 150,
+                          color: Colors.teal,
+                        ),
                       ),
                     ),
                   ),
@@ -119,6 +127,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Garis kecil (Handle)
                         Center(
                           child: Container(
                             width: 40,
@@ -172,12 +181,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                         SizedBox(height: 8),
 
-                        // Isi Deskripsi (Scrollable jika panjang)
+                        // Isi Deskripsi (Scrollable)
                         Expanded(
                           child: SingleChildScrollView(
                             physics: BouncingScrollPhysics(),
                             child: Text(
-                              product.description,
+                              product.description.isNotEmpty 
+                                  ? product.description 
+                                  : 'Tidak ada deskripsi tersedia.',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 15,
@@ -188,15 +199,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
 
                         // --- 3. TOMBOL AKSI FIXED DI BAWAH ---
+                        SizedBox(height: 16),
                         Center(
                           child: SizedBox(
-                            width: 235, // Lebar tombol
-                            height: 53,
+                            width: double.infinity, // Agar tombol selebar container
+                            height: 55,
                             child: ElevatedButton.icon(
-                              icon: Icon(
-                                Icons.add_shopping_cart,
-                                color: Colors.white,
-                              ),
+                              icon: Icon(Icons.add_shopping_cart, color: Colors.white),
                               label: Text(
                                 'Tambah ke Keranjang',
                                 style: TextStyle(
@@ -216,8 +225,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                         ),
-
-                        SizedBox(height: 130),
+                        // SizedBox bawah dihapus agar tombol pas di bawah
                       ],
                     ),
                   ),
