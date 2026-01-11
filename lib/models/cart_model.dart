@@ -1,40 +1,33 @@
 class CartItem {
-  final int id;
+  final int productId;
   final String name;
-  final int quantity;
   final double price;
+  int quantity; // Tidak final karena bisa diubah (+/-)
 
   CartItem({
-    required this.id,
+    required this.productId,
     required this.name,
-    required this.quantity,
     required this.price,
+    required this.quantity,
   });
 
+  // Factory untuk mengubah JSON dari Backend menjadi Object Dart
   factory CartItem.fromJson(Map<String, dynamic> json) {
-    // PHP kadang mengirim angka sebagai string/int/double, kita parsing aman
     return CartItem(
-      id: json['id'],
+      productId: int.parse(json['product_id'].toString()),
       name: json['name'],
-      quantity: int.parse(json['quantity'].toString()),
       price: double.parse(json['price'].toString()),
+      quantity: int.parse(json['quantity'].toString()),
     );
   }
-}
 
-class CartResponse {
-  final List<CartItem> items;
-  final double total;
-
-  CartResponse({required this.items, required this.total});
-
-  factory CartResponse.fromJson(Map<String, dynamic> json) {
-    var list = json['items'] as List;
-    List<CartItem> itemsList = list.map((i) => CartItem.fromJson(i)).toList();
-
-    return CartResponse(
-      items: itemsList,
-      total: double.parse(json['total'].toString()),
-    );
+  // Mengubah Object ke JSON (jika perlu dikirim balik)
+  Map<String, dynamic> toJson() {
+    return {
+      'product_id': productId,
+      'name': name,
+      'price': price,
+      'quantity': quantity,
+    };
   }
 }

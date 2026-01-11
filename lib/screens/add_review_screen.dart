@@ -1,256 +1,211 @@
 import 'package:flutter/material.dart';
-import '../models/product_model.dart';
-import '../models/review_model.dart';
-import '../services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/review_model.dart';
+import '../../models/product_model.dart'; // Import Product Model
+import '../../services/api_service.dart';
 
 class AddReviewScreen extends StatefulWidget {
+  final Review? review;
+  const AddReviewScreen({super.key, this.review});
+
   @override
-  _AddReviewScreenState createState() => _AddReviewScreenState();
+  State<AddReviewScreen> createState() => _AddReviewScreenState();
 }
 
 class _AddReviewScreenState extends State<AddReviewScreen> {
-  final ApiService apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
-  final _reviewController = TextEditingController();
-
-  // State untuk Dropdown
-  Product? _selectedProduct;
-  int _selectedRating = 5;
+  final _commentCtrl = TextEditingController();
+  
+  // Variabel untuk Dropdown Product
   List<Product> _products = [];
+  int? _selectedProductId; 
   bool _isLoadingProducts = true;
+
+  int _rating = 5;
+  bool _isSaving = false;
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-    _loadProductIdsFromReviews();
-  }
-
-  // --- LOGIKA: AMBIL ID DARI API REVIEW (Tanpa Nama Produk) ---
-  void _loadProductIdsFromReviews() async {
-    try {
-      // 1. Panggil API get_reviews (Port 5002)
-      List<Review> reviews = await apiService.fetchReviews();
-
-      // 2. Ambil semua product_id yang unik dari data tersebut
-      // (Menggunakan Set agar ID 101 tidak muncul dua kali jika ada banyak review di ID itu)
-      Set<int> uniqueIds = reviews.map((r) => r.productId).toSet();
-
-      // 3. Ubah menjadi list Product untuk dropdown
-      // Kita gunakan model Product hanya sebagai wadah ID dan Label
-      List<Product> extractedProducts =
-          uniqueIds.map((id) {
-            return Product(
-              id: id,
-              // HANYA MENAMPILKAN ID, TIDAK ADA NAMA PRODUK
-              name: "Product ID: $id",
-              price: 0,
-              description: "",
-            );
-          }).toList();
-
-      // 4. Urutkan berdasarkan ID (101, 102, 103...)
-      extractedProducts.sort((a, b) => a.id.compareTo(b.id));
-
-      setState(() {
-        _products = extractedProducts;
-        _isLoadingProducts = false;
-        // Set default ke item pertama jika ada
-        if (extractedProducts.isNotEmpty)
-          _selectedProduct = extractedProducts[0];
-      });
-    } catch (e) {
-      print("Error: $e");
-      setState(() => _isLoadingProducts = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal memuat ID produk')));
+    _loadProducts(); // Ambil data produk saat buka halaman
+    
+    if (widget.review != null) {
+      _selectedProductId = widget.review!.productId;
+      _commentCtrl.text = widget.review!.comment;
+      _rating = widget.review!.rating;
     }
   }
-  // -----------------------------------------------------------
 
-  void _submitReview() async {
+  // Fungsi ambil produk untuk dropdown
+  void _loadProducts() async {
+    try {
+      final products = await _apiService.fetchProducts();
+      setState(() {
+        _products = products;
+        _isLoadingProducts = false;
+        
+        // Pastikan product ID yang diedit masih ada di list, kalau tidak null-kan
+        if (widget.review != null) {
+          bool exists = _products.any((p) => p.id == widget.review!.productId);
+          if (!exists) _selectedProductId = null;
+        }
+      });
+    } catch (e) {
+      setState(() => _isLoadingProducts = false);
+      print("Error loading products: $e");
+    }
+  }
+
+  void _saveReview() async {
     if (_formKey.currentState!.validate()) {
-      if (_selectedProduct == null) return;
+      if (_selectedProductId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pilih Produk dulu"), backgroundColor: Colors.red));
+        return;
+      }
 
-      Review newReview = Review(
-        id: 0,
-        productId: _selectedProduct!.id, // Ini akan mengirim 101/102/dst
-        review: _reviewController.text,
-        rating: _selectedRating,
-      );
+      setState(() => _isSaving = true);
+      
+      final prefs = await SharedPreferences.getInstance();
+      int userId = prefs.getInt('userId') ?? 1;
 
-      bool success = await apiService.createReview(newReview);
-
-      if (success) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ulasan berhasil ditambahkan!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+      bool success;
+      if (widget.review == null) {
+        // Create
+        final newReview = Review(
+          id: '', 
+          productId: _selectedProductId!, // Ambil dari Dropdown
+          userId: userId,
+          rating: _rating,
+          comment: _commentCtrl.text,
         );
+        success = await _apiService.createReview(newReview);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengirim ulasan'),
-            backgroundColor: Colors.red,
-          ),
+        // Update
+        success = await _apiService.updateReview(
+          widget.review!.id,           // ID Review
+          widget.review!.productId,    // Product ID (Jangan diubah)
+          widget.review!.userId,       // User ID (Jangan diubah/Pakai yg lama)
+          _rating,                     // Rating Baru
+          _commentCtrl.text            // Komentar Baru
         );
+      }
+
+      setState(() => _isSaving = false);
+
+      if (mounted) {
+        if (success) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil disimpan!"), backgroundColor: Color.fromARGB(255, 237, 118, 140)));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal menyimpan"), backgroundColor: Colors.red));
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    bool isEdit = widget.review != null;
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF0F5),
       appBar: AppBar(
-        title: Text('Tulis Ulasan', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        toolbarHeight: 60,
-        titleTextStyle: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+        title: Text(isEdit ? "Edit Review" : "Tambah Review", style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255), fontWeight: FontWeight.bold)),
+        backgroundColor: Color.fromARGB(255, 239, 122, 143),
+        foregroundColor: const Color(0xFF5D4037),
       ),
-      body:
-          _isLoadingProducts
-              ? Center(child: CircularProgressIndicator(color: Colors.teal))
-              : SingleChildScrollView(
-                padding: EdgeInsets.all(20),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. Dropdown Produk
-                      Text(
-                        "Pilih ID Produk",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 8),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<Product>(
-                            value: _selectedProduct,
-                            isExpanded: true,
-                            hint: Text("Pilih ID Produk"),
-                            items:
-                                _products.map((Product product) {
-                                  return DropdownMenuItem<Product>(
-                                    value: product,
-                                    child: Text(
-                                      product
-                                          .name, // Ini akan tampil: "Product ID: 101"
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                            onChanged: (Product? newValue) {
-                              setState(() {
-                                _selectedProduct = newValue;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: 20),
-
-                      // 2. Input Rating (Model Bintang Interaktif)
-                      Text(
-                        "Beri Rating",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 8),
-                      Container(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(5, (index) {
-                            int starValue = index + 1;
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedRating = starValue;
-                                });
-                              },
-                              child: Icon(
-                                starValue <= _selectedRating
-                                    ? Icons.star_rounded
-                                    : Icons.star_border_rounded,
-                                color: Colors.amber,
-                                size: 40,
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-
-                      SizedBox(height: 20),
-
-                      // 3. Input Ulasan
-                      Text(
-                        "Ulasan Anda",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 8),
-                      TextFormField(
-                        controller: _reviewController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          hintText: "Tulis pengalaman Anda...",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Ulasan tidak boleh kosong';
-                          }
-                          return null;
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- DROPDOWN PRODUCT ---
+              const Text("Pilih Produk:", style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              _isLoadingProducts 
+                ? const Center(child: CircularProgressIndicator())
+                : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade400)
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _selectedProductId,
+                        hint: const Text("Pilih Produk yang diulas"),
+                        isExpanded: true,
+                        items: _products.map((Product product) {
+                          return DropdownMenuItem<int>(
+                            value: product.id,
+                            child: Text("${product.name} (ID: ${product.id})"),
+                          );
+                        }).toList(),
+                        onChanged: isEdit ? null : (newValue) { // Disable dropdown jika mode Edit
+                          setState(() {
+                            _selectedProductId = newValue;
+                          });
                         },
                       ),
-
-                      SizedBox(height: 30),
-
-                      // 4. Tombol Submit
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _submitReview,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            "Kirim Ulasan",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+              if (isEdit) 
+                const Padding(
+                  padding: EdgeInsets.only(top: 5),
+                  child: Text("* Produk tidak bisa diubah saat edit", style: TextStyle(color: Colors.grey, fontSize: 12)),
                 ),
+              
+              const SizedBox(height: 20),
+              
+              // --- RATING INPUT ---
+              const Text("Rating:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    iconSize: 40,
+                    icon: Icon(
+                      index < _rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: Colors.amber,
+                    ),
+                    onPressed: () {
+                      setState(() => _rating = index + 1);
+                    },
+                  );
+                }),
               ),
+              const SizedBox(height: 20),
+
+              // --- COMMENT INPUT ---
+              TextFormField(
+                controller: _commentCtrl,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: "Komentar / Ulasan", 
+                  prefixIcon: Icon(Icons.comment_outlined), 
+                  alignLabelWithHint: true
+                ),
+                validator: (v) => v!.isEmpty ? "Komentar wajib diisi" : null,
+              ),
+
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveReview,
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 233, 108, 131)),
+                  child: _isSaving 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                    : const Text("SIMPAN ULASAN", style: TextStyle(color: Colors.white)),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

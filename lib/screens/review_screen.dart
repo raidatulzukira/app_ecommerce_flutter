@@ -1,214 +1,312 @@
 import 'package:flutter/material.dart';
-import '../models/review_model.dart';
-import '../services/api_service.dart';
-import 'review_detail_screen.dart';
-import 'add_review_screen.dart';
+import '../../models/review_model.dart';
+import '../../services/api_service.dart';
+import 'add_review_screen.dart'; // Kita buat setelah ini
+import 'review_detail_screen.dart'; // Kita buat setelah ini
 
 class ReviewScreen extends StatefulWidget {
+  const ReviewScreen({super.key});
+
   @override
-  _ReviewScreenState createState() => _ReviewScreenState();
+  State<ReviewScreen> createState() => _ReviewScreenState();
 }
 
 class _ReviewScreenState extends State<ReviewScreen> {
-  final ApiService apiService = ApiService();
-  late Future<List<Review>> futureReviews;
+  final ApiService _apiService = ApiService();
+  late Future<List<Review>> _reviewsFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadReviews();
+    _refreshReviews();
   }
 
-  void _loadReviews() {
+  void _refreshReviews() {
     setState(() {
-      futureReviews = apiService.fetchReviews();
+      _reviewsFuture = _apiService.fetchReviews();
     });
+  }
+
+  void _deleteReview(String id) async {
+    bool confirm =
+        await showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text("Hapus Review?"),
+                content: const Text("Yakin ingin menghapus ulasan ini?"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("Batal"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text(
+                      "Hapus",
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+
+    if (confirm) {
+      bool success = await _apiService.deleteReview(id);
+      _refreshReviews();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? "Review berhasil dihapus" : "Gagal menghapus review"),
+            backgroundColor:
+                success ? Color.fromARGB(255, 231, 118, 139) : Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Helper untuk menampilkan bintang
+  Widget _buildStars(int rating) {
+    return Row(
+      children: List.generate(5, (index) {
+        return Icon(
+          index < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+          color: Colors.amber,
+          size: 18,
+        );
+      }),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal[50],
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
-        title: Text('Ulasan Pengguna', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.teal,
-        toolbarHeight: 60,
-        titleTextStyle: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+        title: const Text(
+          "Manage Reviews",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Color.fromARGB(255, 242, 128, 149),
+        foregroundColor: const Color.fromARGB(255, 255, 255, 255),
+        elevation: 0,
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color.fromARGB(255, 233, 108, 131),
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddReviewScreen()),
+          );
+          _refreshReviews();
+        },
       ),
       body: FutureBuilder<List<Review>>(
-        future: futureReviews,
+        future: _reviewsFuture,
         builder: (context, snapshot) {
+          // 1. Loading State yang lebih bersih
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: Colors.teal));
-          } else if (snapshot.hasError) {
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Color.fromARGB(255, 233, 108, 131),
+              ),
+            );
+          }
+
+          // 2. Empty State dengan Ikon
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
-              child: Text('Gagal memuat data. Pastikan server 5002 jalan.'),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.rate_review_outlined,
+                    size: 64,
+                    color: Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Belum ada ulasan.",
+                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                  ),
+                ],
+              ),
             );
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('Belum ada ulasan.'));
-          } else {
-            return ListView.builder(
-              padding: EdgeInsets.all(16),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                Review review = snapshot.data![index];
-                return Card(
-                  margin: EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
+          }
+
+          // 3. List View dengan Desain Card Baru
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            itemCount: snapshot.data!.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 16),
+            itemBuilder: (context, index) {
+              final review = snapshot.data![index];
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 251, 232, 236),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 10,
+                      offset: const Offset(0, 4), // Bayangan ke bawah
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
                     borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-
-                    leading: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.blue[50],
-
-                      child: Text(
-                        "${review.id}",
-
-                        style: TextStyle(
-                          color: Colors.teal,
-                          fontSize: 17,
-
-                          fontWeight: FontWeight.w600,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReviewDetailScreen(review: review),
                         ),
-                      ),
-                    ),
-
-                    // 1. BAGIAN ATAS: PRODUCT ID
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.teal,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // --- HEADER: Product Label & Rating ---
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(
-                                Icons.inventory_2_outlined,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                "Product ID: ${review.productId}",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 10,
+                              // Product Chip
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(
+                                    255,
+                                    255,
+                                    240,
+                                    243,
+                                  ), // Background pink muda
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.shopping_bag_outlined,
+                                      size: 14,
+                                      color: Color.fromARGB(255, 233, 108, 131),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "Product ID: ${review.productId}",
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color.fromARGB(
+                                          255,
+                                          233,
+                                          108,
+                                          131,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                              // Stars
+                              _buildStars(review.rating),
                             ],
                           ),
-                        ),
-                        // Review ID kecil di pojok kanan
-                        Text(
-                          "#${review.id}",
-                          style: TextStyle(
-                            color: Colors.grey[300],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
 
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 2. BAGIAN TENGAH: RATING (BINTANG)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
-                          child: Row(
+                          const SizedBox(height: 12),
+
+                          // --- BODY: Comment ---
+                          Text(
+                            review.comment,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              height: 1.4,
+                              color: Color(0xFF424242),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+                          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                          const SizedBox(height: 8),
+
+                          // --- FOOTER: Actions (Edit & Delete) ---
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              // Generate Bintang
-                              ...List.generate(
-                                5,
-                                (i) => Icon(
-                                  i < review.rating
-                                      ? Icons.star
-                                      : Icons.star_border,
+                              TextButton.icon(
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) =>
+                                              AddReviewScreen(review: review),
+                                    ),
+                                  );
+                                  _refreshReviews();
+                                },
+                                icon: const Icon(
+                                  Icons.edit_outlined,
                                   size: 18,
-                                  color: Colors.amber,
+                                  color: Colors.orange,
+                                ),
+                                label: const Text(
+                                  "Edit",
+                                  style: TextStyle(color: Colors.orange),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
-                              SizedBox(width: 8),
-                              // Angka Rating
-                              // Text(
-                              //   "${review.rating}.0",
-                              //   style: TextStyle(
-                              //     fontWeight: FontWeight.bold,
-                              //     color: Colors.grey[600],
-                              //     fontSize: 13,
-                              //   ),
-                              // ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                onPressed: () => _deleteReview(review.id),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
+                                label: const Text(
+                                  "Hapus",
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-
-                        // 3. BAGIAN BAWAH: ISI REVIEW
-                        Text(
-                          review.review,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: 16,
-                            height: 1.3,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        Icons.density_small_outlined,
-                        size: 20,
-                        color: Colors.blue[300],
+                        ],
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                    ReviewDetailScreen(reviewId: review.id),
-                          ),
-                        );
-                      },
                     ),
                   ),
-                );
-              },
-            );
-          }
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddReviewScreen()),
+                ),
+              );
+            },
           );
-
-          // Jika sukses (true), refresh list
-          if (result == true) {
-            _loadReviews();
-          }
         },
-        backgroundColor: Colors.teal,
-        icon: Icon(Icons.add, color: Colors.white),
-        label: Text("Tulis Ulasan", style: TextStyle(color: Colors.white)),
       ),
     );
   }

@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
-import '../models/cart_model.dart';
-import '../services/api_service.dart';
-import 'cart_detail_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart'; // Pastikan sudah add dependency intl di pubspec.yaml
+import '../../models/cart_model.dart';
+import '../../services/api_service.dart';
 
 class CartScreen extends StatefulWidget {
+  const CartScreen({super.key});
+
   @override
-  _CartScreenState createState() => _CartScreenState();
+  State<CartScreen> createState() => _CartScreenState();
 }
 
 class _CartScreenState extends State<CartScreen> {
-  final ApiService apiService = ApiService();
-  late Future<CartResponse> futureCart;
+  final ApiService _apiService = ApiService();
+  List<CartItem> _cartItems = [];
+  bool _isLoading = true;
+  int _userId = 0;
 
   @override
   void initState() {
@@ -18,299 +23,216 @@ class _CartScreenState extends State<CartScreen> {
     _loadCart();
   }
 
-  void _loadCart() {
+  // Format Currency Rupiah
+  String formatRupiah(double number) {
+    final format = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    return format.format(number);
+  }
+
+  void _loadCart() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      futureCart = apiService.fetchCart();
+      _userId = prefs.getInt('userId') ?? 0;
     });
-  }
 
-  // --- FUNGSI: MENAMPILKAN DIALOG KONFIRMASI ---
-  void _confirmDelete(int id) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-              SizedBox(width: 10),
-              Text('Konfirmasi Hapus'),
-            ],
-          ),
-          content: Text(
-            'Anda yakin ingin menghapus item ini?',
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'Batal',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            // Tombol Hapus
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _deleteItem(id);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text('Hapus', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _deleteItem(int id) async {
-    bool success = await apiService.deleteCartItem(id);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Item berhasil dihapus'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      // Refresh halaman
-      _loadCart();
+    if (_userId != 0) {
+      final items = await _apiService.fetchCart(_userId);
+      setState(() {
+        _cartItems = items;
+        _isLoading = false;
+      });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menghapus item'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Hitung Total Harga
+  double get _totalPrice {
+    double total = 0;
+    for (var item in _cartItems) {
+      total += (item.price * item.quantity);
+    }
+    return total;
+  }
+
+  void _updateQuantity(CartItem item, int change) async {
+    int newQty = item.quantity + change;
+
+    if (newQty < 1) return; // Tidak boleh 0, gunakan tombol hapus jika ingin menghapus
+
+    // Optimistic UI Update (Ubah tampilan dulu biar cepat)
+    setState(() {
+      item.quantity = newQty;
+    });
+
+    // Kirim ke Backend
+    bool success = await _apiService.updateCartQuantity(_userId, item.productId, newQty);
+    
+    // Jika gagal, kembalikan ke angka semula
+    if (!success) {
+      setState(() {
+        item.quantity = item.quantity - change;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal mengupdate keranjang")));
+      }
+    }
+  }
+
+  void _deleteItem(int productId) async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Hapus Item?"),
+        content: const Text("Yakin ingin menghapus produk ini dari keranjang?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Batal")),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Hapus", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      setState(() => _isLoading = true);
+      bool success = await _apiService.removeCartItem(_userId, productId);
+      if (success) {
+        _loadCart(); // Reload data
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Item dihapus"), backgroundColor: Color.fromARGB(255, 221, 125, 143)));
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal menghapus"), backgroundColor: Colors.red));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
-        title: Text('Keranjang Belanja', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.teal,
-        toolbarHeight: 60,
-        centerTitle: true,
-        titleTextStyle: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+        title: const Text("Keranjang Saya", style: TextStyle(fontWeight: FontWeight.bold),),
+        backgroundColor: Color.fromARGB(255, 237, 126, 146),
+        foregroundColor: const Color.fromARGB(255, 255, 255, 255),
         elevation: 0,
+        centerTitle: true,
       ),
-      body: FutureBuilder<CartResponse>(
-        future: futureCart,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: Colors.teal));
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 80,
-                    color: Colors.grey[300],
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF5C8D)))
+          : _cartItems.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey),
+                      SizedBox(height: 10),
+                      Text("Keranjang masih kosong", style: TextStyle(color: Colors.grey)),
+                    ],
                   ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Keranjang masih kosong',
-                    style: TextStyle(color: Colors.grey, fontSize: 18),
-                  ),
-                ],
-              ),
-            );
-          } else {
-            final cartData = snapshot.data!;
-            return Column(
-              children: [
-                // --- List Items ---
-                Expanded(
-                  child: ListView.builder(
-                    padding: EdgeInsets.all(18),
-                    itemCount: cartData.items.length,
-                    itemBuilder: (context, index) {
-                      final item = cartData.items[index];
-                      return Card(
-                        color: Colors.teal[50],
-                        margin: EdgeInsets.symmetric(vertical: 8.0),
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              // Icon Gambar Produk
-                              Container(
-                                width: 70,
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.shopping_bag_outlined,
-                                  color: Colors.teal,
-                                  size: 30,
-                                ),
-                              ),
-                              SizedBox(width: 16),
-
-                              // Info Produk
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Qty: ${item.quantity}',
-                                      style: TextStyle(color: Colors.grey[600]),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      '\$${item.price}',
-                                      style: TextStyle(
-                                        color: Colors.teal,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // Tombol Aksi
-                              Column(
+                )
+              : Column(
+                  children: [
+                    // LIST ITEM
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _cartItems.length,
+                        itemBuilder: (context, index) {
+                          final item = _cartItems[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Row(
                                 children: [
-                                  // Tombol Detail
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.density_small_outlined,
-                                      color: Colors.blue[300],
+                                  // Icon Produk
+                                  Container(
+                                    width: 60, height: 60,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF0F5),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => CartDetailScreen(
-                                                cartId: item.id,
-                                              ),
-                                        ),
-                                      );
-                                    },
+                                    child: const Icon(Icons.shopping_bag, color: Color(0xFFFF5C8D)),
                                   ),
+                                  const SizedBox(width: 16),
+                                  
+                                  // Info Produk
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        Text(formatRupiah(item.price), style: const TextStyle(color: Color(0xFFFF5C8D), fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Kontrol Quantity
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, color: Colors.grey),
+                                        onPressed: () => _updateQuantity(item, -1),
+                                      ),
+                                      Text("${item.quantity}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      IconButton(
+                                        icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFF5C8D)),
+                                        onPressed: () => _updateQuantity(item, 1),
+                                      ),
+                                    ],
+                                  ),
+
                                   // Tombol Hapus
                                   IconButton(
-                                    icon: Icon(
-                                      Icons.delete_outline,
-                                      color: Colors.red[300],
-                                    ),
-
-                                    onPressed: () => _confirmDelete(item.id),
+                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                    onPressed: () => _deleteItem(item.productId),
                                   ),
                                 ],
                               ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    // TOTAL HARGA & CHECKOUT
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("Total Harga:", style: TextStyle(fontSize: 16, color: Color.fromARGB(255, 129, 120, 120))),
+                              Text(formatRupiah(_totalPrice), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF5D4037))),
                             ],
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // --- Total Bottom Sheet ---
-                Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(24),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        offset: Offset(0, -5),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Total Harga',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                          Text(
-                            '\$${cartData.total}',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.teal,
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Checkout belum tersedia")));
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color.fromARGB(255, 233, 108, 131),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              ),
+                              child: const Text("CHECKOUT SEKARANG", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                             ),
                           ),
+                          SizedBox(height: 100),
                         ],
                       ),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Checkout',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            );
-          }
-        },
-      ),
     );
   }
 }

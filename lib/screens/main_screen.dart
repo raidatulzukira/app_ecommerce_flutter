@@ -1,53 +1,134 @@
 import 'package:flutter/material.dart';
-import 'product_screen.dart';
-import 'user_screen.dart';
+import 'product_screen.dart'; // Pastikan file ini ada (List Produk Customer)
+import 'user_screen.dart';    // Pastikan file ini ada
+import 'review_screen.dart';  // Pastikan file ini ada
+import 'login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'admin/admin_product_screen.dart';
+import 'admin/admin_user_screen.dart';
+import 'cart_screen.dart';
 import 'review_screen.dart';
+import 'review_detail_screen.dart';
+import 'add_review_screen.dart';
 
 class MainScreen extends StatefulWidget {
+  final String role;
+  const MainScreen({super.key, required this.role});
+
   @override
-  _MainScreenState createState() => _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // Daftar halaman yang akan ditampilkan
-  static List<Widget> _widgetOptions = <Widget>[
-    ProductScreen(), // Index 0: Home/Produk
-    UserScreen(), // Index 1: User (Pindah ke sini)
-    ReviewScreen(), // Index 2: Ulasan
-  ];
+  // --- MENU KHUSUS CUSTOMER ---
+  late final List<Widget> _customerPages;
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  // --- MENU KHUSUS ADMIN ---
+  // Untuk Admin, kita buat Dashboard sederhana berupa Grid Menu
+  Widget _buildAdminDashboard() {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: 15,
+        mainAxisSpacing: 15,
+        children: [
+          _buildAdminCard("Manage Products", Icons.inventory_2, const Color(0xFFFF5C8D), () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminProductScreen()));
+          }),
+          _buildAdminCard("Manage Users", Icons.people, const Color(0xFFBA68C8), () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUserScreen()));
+          }),
+          _buildAdminCard("Manage Reviews", Icons.rate_review, const Color(0xFFFFB74D), () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewScreen()));
+          }),
+          _buildAdminCard("My Cart (Admin)", Icons.shopping_cart, const Color(0xFF4DB6AC), () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen()));
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.pink.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(radius: 30, backgroundColor: color.withOpacity(0.2), child: Icon(icon, color: color, size: 30)),
+            const SizedBox(height: 15),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Inisialisasi halaman customer
+    _customerPages = [
+      ProductScreen(),
+      UserScreen(), // Atau CartScreen jika sudah ada
+      ReviewScreen(),
+    ];
+  }
+
+  void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    bool isAdmin = widget.role == 'admin';
+
     return Scaffold(
-      body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          // Item 1: Produk
-          BottomNavigationBarItem(icon: Icon(Icons.store), label: 'Produk'),
-
-          // Item 2: User (Menggantikan Keranjang)
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_pin_rounded), // Icon User
-            label: 'Akun', // Label User
-          ),
-
-          // Item 3: Ulasan
-          BottomNavigationBarItem(
-            icon: Icon(Icons.rate_review),
-            label: 'Ulasan',
-          ),
+      appBar: AppBar(
+        title: Text(isAdmin ? "Admin Dashboard" : "Pink Boutique"),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: const TextStyle(color: Color.fromARGB(255, 239, 88, 116), fontSize: 22, fontWeight: FontWeight.bold),
+        actions: [
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout, color: Color.fromARGB(255, 233, 108, 131))),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.teal,
-        onTap: _onItemTapped,
+      ),
+      
+      // Jika Admin -> Tampilkan Dashboard Grid
+      // Jika Customer -> Tampilkan Halaman BottomNav
+      body: isAdmin 
+          ? _buildAdminDashboard() 
+          : _customerPages[_selectedIndex],
+
+      bottomNavigationBar: isAdmin ? null : Container(
+        decoration: BoxDecoration(
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color.fromARGB(255, 233, 108, 131),
+          unselectedItemColor: Colors.grey[400],
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Shop'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'), // Atau Cart
+            BottomNavigationBarItem(icon: Icon(Icons.star_rounded), label: 'Reviews'),
+          ],
+        ),
       ),
     );
   }

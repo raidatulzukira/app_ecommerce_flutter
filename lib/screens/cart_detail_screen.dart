@@ -35,7 +35,7 @@ class CartDetailScreen extends StatelessWidget {
                   width: double.infinity,
                   child: Center(
                     child: Hero(
-                      tag: 'cartImage${item.id}',
+                      tag: 'cartImage${item}',
                       child: Icon(
                         Icons.shopping_bag_outlined,
                         size: 120,
@@ -90,7 +90,7 @@ class CartDetailScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'ID Produk: #${item.id}',
+                            'ID Produk: #${item}',
                             style: TextStyle(
                               color: Colors.grey[800],
                               fontSize: 12,

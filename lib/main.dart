@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/main_screen.dart';
+import 'screens/get_started_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,47 +11,59 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'E-Commerce App',
+      title: 'Pink Boutique',
       debugShowCheckedModeBanner: false,
-
       theme: ThemeData(
         useMaterial3: true,
-
+        fontFamily: 'Poppins', // Pastikan font ini ada atau gunakan default
+        
+        // --- SKEMA WARNA LOVELY ---
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.teal,
-          brightness: Brightness.light,
-          primary: Colors.teal,
+          seedColor: const Color(0xFFFF8FA3), // Pink Utama (Lovely Pink)
+          primary: const Color.fromARGB(255, 233, 108, 131),   // Pink lebih tua untuk Tombol/Aksen
+          secondary: const Color(0xFF5D4037), // Coklat tua untuk Teks (Kontras cantik dengan pink)
+          surface: const Color(0xFFFFF0F5),   // Lavender Blush (Background sangat muda)
+          background: const Color(0xFFFFF0F5),
+        ),
+        
+        scaffoldBackgroundColor: const Color.fromARGB(255, 254, 234, 238), // Background aplikasi
 
-          secondary: Colors.tealAccent,
+        // Styling Input Form
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: const BorderSide(color: Colors.white),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: const BorderSide(color: Color.fromARGB(255, 233, 108, 131), width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+          labelStyle: const TextStyle(color: Colors.grey),
         ),
 
-        scaffoldBackgroundColor: Colors.grey[50],
-
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.teal,
-          foregroundColor: Colors.white,
-          centerTitle: true,
-          elevation: 0,
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-            letterSpacing: 0.5,
+        // Styling Tombol Utama (Elevated)
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color.fromARGB(255, 233, 108, 131), // Warna Tombol Pink
+            foregroundColor: Colors.white, // Warna Teks Tombol
+            elevation: 8,
+            shadowColor: const Color(0xFFFF5C8D).withOpacity(0.4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-        ),
-
-        cardTheme: CardTheme(
-          color: Colors.white,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         ),
       ),
-
-      // Halaman awal aplikasi
-      home: MainScreen(),
+      home: const GetStartedScreen(),
     );
   }
 }
