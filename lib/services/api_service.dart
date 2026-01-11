@@ -30,6 +30,9 @@ class ApiService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('role', data['user']['role']); 
         await prefs.setInt('userId', data['user']['id']);
+
+        await prefs.setString('name', data['user']['name']);   // Simpan Nama
+        await prefs.setString('email', data['user']['email']); // Simpan Email
         
         return {'success': true, 'role': data['user']['role'], 'data': data};
       } else {
@@ -167,16 +170,33 @@ class ApiService {
   // 1. Ambil List Cart berdasarkan User ID
   Future<List<CartItem>> fetchCart(int userId) async {
     try {
+      print("--- MULAI FETCH CART ---");
+      print("URL: $baseUrlCart/cart/$userId");
+
       final response = await http.get(Uri.parse('$baseUrlCart/cart/$userId'));
       
+      print("Status Code: ${response.statusCode}");
+      print("Raw Body: ${response.body}"); // <--- KITA LIHAT ISI ASLINYA
+
       if (response.statusCode == 200) {
         List<dynamic> body = jsonDecode(response.body);
-        return body.map((item) => CartItem.fromJson(item)).toList();
+        print("Jumlah Data JSON: ${body.length}");
+
+        return body.map((item) {
+          try {
+            print("Sedang parsing item: $item"); // Cek item mana yang bikin error
+            return CartItem.fromJson(item);
+          } catch (e) {
+            print("!!! ERROR PARSING ITEM INI: $e");
+            throw e; // Lempar error biar ketahuan
+          }
+        }).toList();
       } else {
-        return []; // Kembalikan list kosong jika gagal/kosong
+        print("Gagal Fetch: ${response.reasonPhrase}");
+        return [];
       }
     } catch (e) {
-      print("Error fetch cart: $e");
+      print("!!! FATAL ERROR FETCH CART: $e"); // <--- INI KUNCINYA
       return [];
     }
   }
@@ -219,37 +239,65 @@ class ApiService {
   // }
 
   // 4. Tambah Item ke Keranjang
-  // UBAH parameter dari (int productId) MENJADI (Product product)
-  // 4. Tambah Item ke Keranjang (FIXED)
-  Future<bool> addToCart(Product product) async {
+  Future<bool> addToCart(int userId, Product product, int quantity) async {
     try {
-      // Ambil User ID yang sedang login
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getInt('userId') ?? 1; // Default 1 jika null
-
-      // Endpoint '/cart' (sesuai backend PHP)
-      final url = Uri.parse('$baseUrlCart/cart'); 
+      final url = Uri.parse('$baseUrlCart/cart');
+      
+      print("Adding to Cart: ${product.name} for User $userId");
       
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          'user_id': userId,       // ID Admin yang login
-          'product_id': product.id,
-          'name': product.name,
-          'price': product.price,
-          'quantity': 1            // Default tambah 1
+          "user_id": userId,
+          "product_id": product.id,
+          "name": product.name,   
+          "price": product.price, 
+          "quantity": quantity
         }),
       );
 
-      print("Add to Cart Response: ${response.body}"); // Debugging
+      print("Response Cart: ${response.statusCode} - ${response.body}");
 
-      return response.statusCode == 201 || response.statusCode == 200;
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print("Error adding to cart: $e");
+      print("Error Add Cart: $e");
       return false;
     }
   }
+
+
+  // UBAH parameter dari (int productId) MENJADI (Product product)
+  // 4. Tambah Item ke Keranjang (FIXED)
+  // Future<bool> addToCart(Product product) async {
+  //   try {
+  //     // Ambil User ID yang sedang login
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final userId = prefs.getInt('userId') ?? 1; // Default 1 jika null
+
+  //     // Endpoint '/cart' (sesuai backend PHP)
+  //     final url = Uri.parse('$baseUrlCart/cart'); 
+      
+  //     final response = await http.post(
+  //       url,
+  //       headers: {"Content-Type": "application/json"},
+  //       body: jsonEncode({
+  //         'user_id': userId,       // ID Admin yang login
+  //         'product_id': product.id,
+  //         'name': product.name,
+  //         'price': product.price,
+  //         'quantity': 1            // Default tambah 1
+  //       }),
+  //     );
+
+  //     print("Add to Cart Response: ${response.body}"); // Debugging
+
+  //     return response.statusCode == 201 || response.statusCode == 200;
+  //   } catch (e) {
+  //     print("Error adding to cart: $e");
+  //     return false;
+  //   }
+  // }
 
   // --- REVIEW SERVICE (Port 5002) ---
 

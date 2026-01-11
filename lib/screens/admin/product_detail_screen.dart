@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/product_model.dart';
 import '../../services/api_service.dart';
 import 'product_form_screen.dart'; // Untuk edit dari halaman detail
@@ -15,11 +16,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
 
+  // 2. TAMBAHKAN VARIABEL USER ID
+  int _userId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSession(); // 3. PANGGIL FUNGSI SESSION
+  }
+
+  // 4. BUAT FUNGSI AMBIL ID DARI HP
+  void _loadSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userId = prefs.getInt('userId') ?? 0;
+    });
+  }
+
   void _addToCart() async {
+    // Cek apakah user sudah login
+    if (_userId == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Silakan login terlebih dahulu"), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     
-    // Panggil fungsi addToCart yang baru kita perbaiki
-    bool success = await _apiService.addToCart(widget.product);
+    // 5. PERBAIKI PEMANGGILAN FUNGSI (Kirim 3 Parameter)
+    // Parameter: (User ID, Product ID, Quantity 1)
+    bool success = await _apiService.addToCart(_userId, widget.product, 1);
     
     setState(() => _isLoading = false);
 
@@ -49,7 +76,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       // Disini kita pakai AppBar biasa tapi warnanya senada
       appBar: AppBar(
         title: const Text("Detail Produk", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white,),),
-        backgroundColor: Color.fromARGB(255, 235, 123, 144), 
+        backgroundColor: Color.fromARGB(255, 239, 130, 150), 
         foregroundColor: const Color.fromARGB(255, 255, 255, 255),
         actions: [
           // Tombol Edit di pojok kanan atas

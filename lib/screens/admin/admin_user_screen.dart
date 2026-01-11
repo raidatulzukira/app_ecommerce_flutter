@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
-import 'user_form_screen.dart';   // Pastikan file ini ada
-import 'user_detail_screen.dart'; // Pastikan file ini ada
+import 'user_detail_screen.dart';
+import 'user_form_screen.dart';
 
 class AdminUserScreen extends StatefulWidget {
   const AdminUserScreen({super.key});
@@ -15,10 +16,21 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
   final ApiService _apiService = ApiService();
   late Future<List<User>> _usersFuture;
 
+  int? _currentUserId;
+
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _refreshUsers();
+  }
+
+  // --- TAMBAHAN 2: Fungsi ambil ID dari HP ---
+  void _loadCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _currentUserId = prefs.getInt('userId');
+    });
   }
 
   void _refreshUsers() {
@@ -84,16 +96,18 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
       ),
 
       // Tombol Tambah User (+)
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromARGB(255, 233, 108, 131),
-        child: const Icon(Icons.add, color: Colors.white),
-        onPressed: () async {
-          // Pindah ke Form Tambah
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const UserFormScreen()));
-          // Refresh setelah kembali
-          _refreshUsers();
-        },
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   backgroundColor: const Color.fromARGB(255, 233, 108, 131),
+      //   child: const Icon(Icons.add, color: Colors.white),
+      //   onPressed: () async {
+      //     // Pindah ke Form Tambah
+      //     await Navigator.push(context, MaterialPageRoute(builder: (_) => const UserFormScreen()));
+      //     // Refresh setelah kembali
+      //     _refreshUsers();
+      //   },
+      // ),
+
+      floatingActionButton: null,
 
       body: FutureBuilder<List<User>>(
         future: _usersFuture,
@@ -181,24 +195,40 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                         // Tombol Aksi (Edit & Delete)
                         Row(
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit_rounded, color: Colors.orange, size: 22),
-                              onPressed: () async {
-                                // Pindah ke Form Edit
-                                await Navigator.push(
-                                  context, 
-                                  MaterialPageRoute(builder: (_) => UserFormScreen(user: user))
-                                );
-                                // Refresh setelah kembali dari edit
-                                _refreshUsers();
-                              },
-                            ),
+                            // Logika: Tombol Edit HANYA muncul jika User ID di list == ID Admin yg login
+                            if (user.id == _currentUserId)
+                              IconButton(
+                                icon: const Icon(Icons.edit_rounded, color: Colors.orange, size: 22),
+                                tooltip: "Edit Profil Saya",
+                                onPressed: () async {
+                                  // Buka form edit
+                                  await Navigator.push(
+                                    context, 
+                                    MaterialPageRoute(builder: (_) => UserFormScreen(user: user))
+                                  );
+                                  _refreshUsers();
+                                },
+                              ),
+                            // IconButton(
+                            //   icon: const Icon(Icons.edit_rounded, color: Colors.orange, size: 22),
+                            //   onPressed: () async {
+                            //     // Pindah ke Form Edit
+                            //     await Navigator.push(
+                            //       context, 
+                            //       MaterialPageRoute(builder: (_) => UserFormScreen(user: user))
+                            //     );
+                            //     // Refresh setelah kembali dari edit
+                            //     _refreshUsers();
+                            //   },
+                            // ),
                             
-                            // --- 3. TOMBOL DELETE ---
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22),
-                              onPressed: () => _deleteUser(user.id),
-                            ),
+                            // Tombol Hapus (Admin bisa hapus siapa saja, KECUALI dirinya sendiri biar gak error)
+                            if (user.id != _currentUserId)
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22),
+                                tooltip: "Hapus User",
+                                onPressed: () => _deleteUser(user.id),
+                              ),
                           ],
                         )
                       ],

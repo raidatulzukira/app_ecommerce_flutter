@@ -56,7 +56,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.product == null ? "Tambah Produk" : "Edit Produk", style: TextStyle(fontWeight: FontWeight.bold),), backgroundColor: Color.fromARGB(255, 239, 129, 149), foregroundColor: const Color.fromARGB(255, 255, 255, 255)),
+      appBar: AppBar(title: Text(widget.product == null ? "Tambah Produk" : "Edit Produk", style: TextStyle(fontWeight: FontWeight.bold),), backgroundColor: Color.fromARGB(255, 238, 132, 151), foregroundColor: const Color.fromARGB(255, 255, 255, 255)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UserFormScreen extends StatefulWidget {
   final User? user; // Jika null = Tambah, Jika ada = Edit
@@ -19,6 +20,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
   
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
+  bool _isCustomerLogin = false;
 
   @override
   void initState() {
@@ -27,6 +29,15 @@ class _UserFormScreenState extends State<UserFormScreen> {
     _emailCtrl = TextEditingController(text: widget.user?.email ?? '');
     _passCtrl = TextEditingController();
     _role = widget.user?.role ?? 'customer';
+
+    _checkLoginRole();
+  }
+
+  void _checkLoginRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isCustomerLogin = (prefs.getString('role') == 'customer');
+    });
   }
 
   void _saveUser() async {
@@ -67,6 +78,16 @@ class _UserFormScreenState extends State<UserFormScreen> {
           _passCtrl.text, // Password bisa kosong
           _role // Kirim role (biasanya backend user butuh ini)
         );
+
+        // Jika sukses dan yang login adalah customer, update nama di HP
+        if (result['success'] == true) {
+           final prefs = await SharedPreferences.getInstance();
+           int myId = prefs.getInt('userId') ?? 0;
+           if (widget.user!.id == myId) {
+              await prefs.setString('name', _nameCtrl.text);
+              await prefs.setString('email', _emailCtrl.text);
+           }
+        }
       }
 
       setState(() => _isLoading = false);
@@ -81,7 +102,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
         );
 
         if (result['success']) {
-          Navigator.pop(context); // Kembali ke list user hanya jika sukses
+          Navigator.pop(context, true);
+          // Navigator.pop(context); // Kembali ke list user hanya jika sukses
         }
       }
     }
@@ -118,18 +140,51 @@ class _UserFormScreenState extends State<UserFormScreen> {
               const SizedBox(height: 16),
               
               // Role (Hanya tampil info jika Edit, karena request kamu role tidak boleh diubah saat edit)
-              if (isEdit)
+              // if (isEdit)
+              //   Container(
+              //     width: double.infinity,
+              //     padding: const EdgeInsets.all(16),
+              //     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              //     child: Text("Role: ${_role.toUpperCase()} (Tidak dapat diubah)", style: TextStyle(color: Colors.grey[600])),
+              //   ),
+              
+              // // Dropdown hanya muncul jika Tambah Baru
+              // if (!isEdit)
+              //   Container(
+              //     padding: const EdgeInsets.symmetric(horizontal: 16),
+              //     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              //     child: DropdownButtonHideUnderline(
+              //       child: DropdownButton<String>(
+              //         value: _role,
+              //         isExpanded: true,
+              //         items: const [
+              //           DropdownMenuItem(value: "customer", child: Text("Customer")),
+              //           DropdownMenuItem(value: "admin", child: Text("Admin")),
+              //         ],
+              //         onChanged: (val) => setState(() => _role = val!),
+              //       ),
+              //     ),
+              //   ),
+
+              if (isEdit) 
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                  child: Text("Role: ${_role.toUpperCase()} (Tidak dapat diubah)", style: TextStyle(color: Colors.grey[600])),
+                  child: Text(
+                    "Role: ${_role.toUpperCase()} (Tidak dapat diubah)", 
+                    style: TextStyle(color: Colors.grey[600])
+                  ),
                 ),
               
-              // Dropdown hanya muncul jika Tambah Baru
+              // 2. Tampilkan DROPDOWN hanya jika:
+              //    - Tambah Baru (!isEdit) 
+              //    - DAN (Opsional: Yang login Admin) - asumsikan tambah user pasti admin
               if (!isEdit)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
